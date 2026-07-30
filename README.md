@@ -1,14 +1,16 @@
-# opencode-subagent-model-selector
+# @idrisgit/opencode-subagent-model-selector
 
-A local OpenCode plugin that selects named subagent models from the effective model of the direct primary session.
+An OpenCode plugin that selects named subagent models from the effective model of the direct primary session.
 
-Configure it in `opencode.json`:
+## Installation
+
+Add the package and its options to `opencode.json`:
 
 ```json
 {
   "plugin": [
     [
-      "file:///home/idris/Dev/personal/opencode-subagent-model-selector/src/index.ts",
+      "@idrisgit/opencode-subagent-model-selector",
       {
         "selections": [
           {
@@ -32,6 +34,23 @@ If a selection for the active subagent and parent model is malformed, the plugin
 
 Nested subagents are not routed: they inherit their caller's model normally.
 
+## Development
+
+For local development, use the source file instead of the npm package:
+
+```json
+{
+  "plugin": [
+    [
+      "file:///path/to/opencode-subagent-model-selector/src/index.ts",
+      { "selections": [] }
+    ]
+  ]
+}
+```
+
 ```bash
 bun run typecheck
+bun run check
+npm pack --dry-run
 ```

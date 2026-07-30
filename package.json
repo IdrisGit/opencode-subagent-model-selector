@@ -1,8 +1,27 @@
 {
-	"name": "opencode-subagent-model-selector",
-	"module": "src/index.ts",
+	"name": "@idrisgit/opencode-subagent-model-selector",
+	"version": "0.0.1",
+	"description": "Route OpenCode subagents to models based on the parent session model.",
 	"type": "module",
-	"private": true,
+	"exports": "./src/index.ts",
+	"files": [
+		"src"
+	],
+	"license": "Apache-2.0",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/IdrisGit/opencode-subagent-model-selector.git"
+	},
+	"bugs": {
+		"url": "https://github.com/IdrisGit/opencode-subagent-model-selector/issues"
+	},
+	"homepage": "https://github.com/IdrisGit/opencode-subagent-model-selector#readme",
+	"keywords": [
+		"opencode",
+		"opencode-plugin",
+		"subagent",
+		"model-routing"
+	],
 	"scripts": {
 		"typecheck": "tsc --noEmit",
 		"check": "biome check .",
@@ -11,9 +30,7 @@
 	"devDependencies": {
 		"@biomejs/biome": "2.5.6",
 		"@opencode-ai/plugin": "1.18.9",
-		"@types/bun": "latest"
-	},
-	"peerDependencies": {
+		"@types/bun": "latest",
 		"typescript": "^5"
 	}
 }
