@@ -4,12 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing annotated release tag, for example v0.0.1
+        description: Existing GitHub Release tag, for example v0.0.1
         required: true
         type: string
 
 permissions:
-  contents: write
+  contents: read
   id-token: write
 
 concurrency:
@@ -34,6 +34,7 @@ jobs:
 
       - name: Verify release tag
         env:
+          GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.tag }}
         run: |
           if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
@@ -46,8 +47,8 @@ jobs:
             exit 1
           fi
 
-          if [ "$(git cat-file -t "refs/tags/$TAG")" != "tag" ]; then
-            echo "Tag must be annotated: $TAG"
+          if ! gh release view "$TAG" >/dev/null; then
+            echo "GitHub Release does not exist for tag: $TAG"
             exit 1
           fi
 
@@ -71,9 +72,3 @@ jobs:
       - run: bun run check
       - run: npm pack --dry-run
       - run: npm publish --access public
-
-      - name: Create GitHub release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ inputs.tag }}
-        run: gh release create "$TAG" --verify-tag --generate-notes --title "$TAG"
