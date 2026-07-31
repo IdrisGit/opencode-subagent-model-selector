@@ -12,12 +12,35 @@ Add the package and its options to `opencode.json`:
     [
       "@idrisgit/opencode-subagent-model-selector",
       {
-        "selections": [
+        "routes": [
           {
-            "agent": "explore",
-            "from": "openai/gpt-5.6-sol",
-            "to": "openai/gpt-5.6-luna",
-            "variant": "high"
+            "primary": {
+              "model": "openai/gpt-5.6-sol"
+            },
+            "subagents": {
+              "explore": {
+                "model": "openai/gpt-5.6-luna",
+                "variant": "low"
+              },
+              "general": {
+                "model": "openai/gpt-5.6-luna"
+              },
+              "code-review": {
+                "model": "anthropic/claude-sonnet-4-6"
+              }
+            }
+          },
+          {
+            "primary": {
+              "model": "openai/gpt-5.6-sol",
+              "variant": "high"
+            },
+            "subagents": {
+              "explore": {
+                "model": "openai/gpt-5.6-terra",
+                "variant": "high"
+              }
+            }
           }
         ]
       }
@@ -26,11 +49,13 @@ Add the package and its options to `opencode.json`:
 }
 ```
 
-Each rule requires an exact OpenCode subagent name, such as `explore`, `general`, or a user-defined agent. Unmatched rules use OpenCode's normal subagent resolution, including `agent.<name>.model`. If `variant` is omitted, the target model uses its default variant.
+`routes` is an ordered array. Every route requires a `primary` model descriptor and a non-empty `subagents` object. `primary` and every subagent assignment require `model` in `provider/model` form and accept an optional `variant`. Subagent object keys are exact OpenCode agent names, so built-in agents such as `explore` and `general` and user-defined agents such as `code-review` work identically.
 
-Rules are evaluated in declaration order. When multiple rules have the same `agent` and `from` pair, the final rule takes precedence.
+An omitted `primary.variant` matches every variant of the primary model. Set `primary.variant` to match only that variant; `"default"` matches the normalized default variant. An omitted subagent `variant` uses the target model's default variant.
 
-If a selection for the active subagent and parent model is malformed, the plugin shows a warning and leaves that subagent on OpenCode's default model resolution. Other valid selections continue to apply.
+Routes are evaluated in declaration order and the final matching assignment for an agent wins. A later matching route is a partial override: it only changes the subagents it declares. In the example, Sol High sends `explore` to Terra High while `general` retains its Luna assignment from the earlier route.
+
+If no route assigns a model, the plugin defers to OpenCode's normal agent model resolution. Configure an unconditional model with OpenCode's native `agent.<name>.model` setting rather than this plugin. Malformed routes show a warning and fall back without disabling valid, unrelated assignments.
 
 Nested subagents are not routed: they inherit their caller's model normally.
 
@@ -43,7 +68,7 @@ For local development, use the source file instead of the npm package:
   "plugin": [
     [
       "file:///path/to/opencode-subagent-model-selector/src/index.ts",
-      { "selections": [] }
+      { "routes": [] }
     ]
   ]
 }

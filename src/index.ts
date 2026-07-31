@@ -3,6 +3,7 @@ import type { Plugin, PluginOptions } from "@opencode-ai/plugin";
 type Model = Readonly<{
 	providerID: string;
 	modelID: string;
+	variant?: string;
 }>;
 
 type Session = {
@@ -10,32 +11,28 @@ type Session = {
 	model?: {
 		providerID: string;
 		id: string;
+		variant?: string;
 	};
 };
 
 type Selection = Readonly<{
 	agent: string;
-	from: string;
-	providerID: string;
-	modelID: string;
-	variant?: string;
+	primary: Model;
+	subagent: Model;
 }>;
 
 type InvalidSelection = Readonly<{
+	path: string;
 	agent?: string;
-	from?: string;
+	primary?: Model;
 }>;
 
-type ParsedSelection =
-	| Readonly<{ kind: "selection"; selection: Selection }>
-	| Readonly<{ kind: "error"; error: InvalidSelection }>;
-
-type ParsedSelections = Readonly<{
+type ParsedRoutes = Readonly<{
 	selections: readonly Selection[];
 	errors: readonly InvalidSelection[];
 }>;
 
-function parseModel(value: unknown, field: string): Model {
+function parseModelID(value: unknown, field: string): Omit<Model, "variant"> {
 	if (typeof value !== "string") {
 		throw new TypeError(`${field} must be a provider/model string`);
 	}
@@ -59,6 +56,20 @@ function parseVariant(value: unknown, field: string) {
 	return value;
 }
 
+function parseModel(value: unknown, field: string): Model {
+	if (!value || typeof value !== "object" || Array.isArray(value)) {
+		throw new TypeError(`${field} must be an object`);
+	}
+
+	const model = value as Record<string, unknown>;
+	const id = parseModelID(model.model, `${field}.model`);
+	const variant = parseVariant(model.variant, `${field}.variant`);
+	return {
+		...id,
+		...(variant === undefined ? {} : { variant }),
+	};
+}
+
 function parseAgent(value: unknown, field: string) {
 	if (typeof value !== "string" || !value) {
 		throw new TypeError(`${field} must be a non-empty string`);
@@ -66,76 +77,115 @@ function parseAgent(value: unknown, field: string) {
 	return value;
 }
 
-function parseSelection(value: unknown, index: number): ParsedSelection {
-	try {
-		if (!value || typeof value !== "object" || Array.isArray(value)) {
-			throw new TypeError(`selections[${index}] must be an object`);
-		}
+function isObject(value: unknown): value is Record<string, unknown> {
+	return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
 
-		const selection = value as Record<string, unknown>;
-		const agent = parseAgent(selection.agent, `selections[${index}].agent`);
+function parseRoute(value: unknown, index: number): ParsedRoutes {
+	const path = `routes[${index}]`;
+	if (!isObject(value)) {
+		return {
+			selections: [],
+			errors: [{ path }],
+		};
+	}
+
+	const primaryResult = (() => {
 		try {
-			const from = parseModel(selection.from, `selections[${index}].from`);
+			return { kind: "primary" as const, primary: parseModel(value.primary, `${path}.primary`) };
+		} catch {
+			return { kind: "error" as const, error: { path: `${path}.primary` } };
+		}
+	})();
+	if (primaryResult.kind === "error") {
+		return {
+			selections: [],
+			errors: [primaryResult.error],
+		};
+	}
+
+	const subagents = value.subagents;
+	if (!isObject(subagents)) {
+		return {
+			selections: [],
+			errors: [{ path: `${path}.subagents`, primary: primaryResult.primary }],
+		};
+	}
+
+	const assignments = Object.entries(subagents);
+	if (assignments.length === 0) {
+		return {
+			selections: [],
+			errors: [{ path: `${path}.subagents`, primary: primaryResult.primary }],
+		};
+	}
+
+	const results = assignments.map(([agent, subagent]) => {
+		const assignmentPath = `${path}.subagents.${agent || "<empty>"}`;
+		try {
+			const name = parseAgent(agent, assignmentPath);
 			try {
-				const to = parseModel(selection.to, `selections[${index}].to`);
-				const variant = parseVariant(selection.variant, `selections[${index}].variant`);
 				return {
-					kind: "selection",
+					kind: "selection" as const,
 					selection: {
-						agent,
-						from: `${from.providerID}/${from.modelID}`,
-						providerID: to.providerID,
-						modelID: to.modelID,
-						...(variant === undefined ? {} : { variant }),
+						agent: name,
+						primary: primaryResult.primary,
+						subagent: parseModel(subagent, assignmentPath),
 					},
 				};
 			} catch {
 				return {
-					kind: "error",
-					error: {
-						agent,
-						from: `${from.providerID}/${from.modelID}`,
-					},
+					kind: "error" as const,
+					error: { path: assignmentPath, agent: name, primary: primaryResult.primary },
 				};
 			}
 		} catch {
 			return {
-				kind: "error",
-				error: {
-					agent,
-				},
+				kind: "error" as const,
+				error: { path: assignmentPath, primary: primaryResult.primary },
 			};
 		}
-	} catch {
-		return { kind: "error", error: {} };
-	}
-}
-
-function parseSelections(options?: PluginOptions): ParsedSelections {
-	const values = options?.selections;
-	if (!Array.isArray(values)) {
-		return {
-			selections: [],
-			errors: [{}],
-		};
-	}
-
-	const results = values.map(parseSelection);
-	const selections = results.flatMap((result) => (result.kind === "selection" ? [result.selection] : []));
+	});
 
 	return {
-		selections: selections.filter(
-			(selection, index) =>
-				selections.findLastIndex(
-					(candidate) => candidate.agent === selection.agent && candidate.from === selection.from,
-				) === index,
-		),
+		selections: results.flatMap((result) => (result.kind === "selection" ? [result.selection] : [])),
 		errors: results.flatMap((result) => (result.kind === "error" ? [result.error] : [])),
 	};
 }
 
+function parseRoutes(options?: PluginOptions): ParsedRoutes {
+	const routes = options?.routes;
+	if (routes === undefined) {
+		return {
+			selections: [],
+			errors: [],
+		};
+	}
+
+	if (!Array.isArray(routes)) {
+		return {
+			selections: [],
+			errors: [{ path: "routes" }],
+		};
+	}
+
+	const parsed = routes.map(parseRoute);
+	return {
+		selections: parsed.flatMap((route) => route.selections),
+		errors: parsed.flatMap((route) => route.errors),
+	};
+}
+
+function matchesPrimary(selection: { primary?: Model }, model: Model) {
+	return (
+		selection.primary?.providerID === model.providerID &&
+		selection.primary.modelID === model.modelID &&
+		(selection.primary.variant === undefined || selection.primary.variant === (model.variant ?? "default"))
+	);
+}
+
 const server: Plugin = async ({ client }, options) => {
-	const { selections, errors } = parseSelections(options);
+	const { selections, errors } = parseRoutes(options);
 	const reportedErrors = new Set<InvalidSelection>();
 
 	return {
@@ -149,27 +199,37 @@ const server: Plugin = async ({ client }, options) => {
 			const parentModel = parent?.model;
 			if (parent?.parentID || !parentModel) return;
 
-			const model = `${parentModel.providerID}/${parentModel.id}`;
-			const selection = selections.find((selection) => selection.agent === input.agent && selection.from === model);
+			const model = {
+				providerID: parentModel.providerID,
+				modelID: parentModel.id,
+				...(parentModel.variant === undefined || parentModel.variant === "default"
+					? {}
+					: { variant: parentModel.variant }),
+			};
+			const modelName = `${model.providerID}/${model.modelID}`;
+			const selection = selections.findLast(
+				(selection) => selection.agent === input.agent && matchesPrimary(selection, model),
+			);
 			if (selection) {
 				// OpenCode persists this hook output object after all chat.message hooks run.
 				output.message.model = {
-					providerID: selection.providerID,
-					modelID: selection.modelID,
-					...(selection.variant === undefined ? {} : { variant: selection.variant }),
+					providerID: selection.subagent.providerID,
+					modelID: selection.subagent.modelID,
+					...(selection.subagent.variant === undefined ? {} : { variant: selection.subagent.variant }),
 				};
 				return;
 			}
 
 			const error =
-				errors.find((error) => error.agent === input.agent && error.from === model) ??
-				errors.find((error) => error.agent === input.agent && error.from === undefined) ??
-				errors.find((error) => error.agent === undefined);
+				errors.findLast((error) => error.agent === input.agent && matchesPrimary(error, model)) ??
+				errors.findLast((error) => error.agent === input.agent && error.primary === undefined) ??
+				errors.findLast((error) => error.agent === undefined && matchesPrimary(error, model)) ??
+				errors.findLast((error) => error.agent === undefined && error.primary === undefined);
 			if (error && !reportedErrors.has(error)) {
 				reportedErrors.add(error);
-				const message = error.from
-					? `The ${input.agent} subagent selection for ${model} isn't configured properly, so it will use its default model.`
-					: `The ${input.agent} subagent selection isn't configured properly, so it will use its default model.`;
+				const message = `The ${error.agent ? `${input.agent} subagent route` : "subagent routes"}${
+					error.primary ? ` for primary model ${modelName}` : ""
+				} at ${error.path} isn't configured properly, so it will use its default model.`;
 				void client.tui
 					.showToast({ body: { title: "Subagent model selection", message, variant: "warning" } })
 					.catch(() => {});
