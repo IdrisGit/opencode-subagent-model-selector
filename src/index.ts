@@ -6,6 +6,12 @@ type Model = Readonly<{
 	variant?: string;
 }>;
 
+type PrimaryModel = Readonly<{
+	providerID: string;
+	modelID: string;
+	variants?: readonly string[];
+}>;
+
 type Session = {
 	parentID?: string;
 	model?: {
@@ -17,14 +23,14 @@ type Session = {
 
 type Selection = Readonly<{
 	agent: string;
-	primary: Model;
+	primary: PrimaryModel;
 	subagent: Model;
 }>;
 
 type InvalidSelection = Readonly<{
 	path: string;
 	agent?: string;
-	primary?: Model;
+	primary?: PrimaryModel;
 }>;
 
 type ParsedRoutes = Readonly<{
@@ -56,6 +62,14 @@ function parseVariant(value: unknown, field: string) {
 	return value;
 }
 
+function parseRequiredVariant(value: unknown, field: string) {
+	const variant = parseVariant(value, field);
+	if (variant === undefined) {
+		throw new TypeError(`${field} must be a non-empty string`);
+	}
+	return variant;
+}
+
 function parseModel(value: unknown, field: string): Model {
 	if (!value || typeof value !== "object" || Array.isArray(value)) {
 		throw new TypeError(`${field} must be an object`);
@@ -67,6 +81,29 @@ function parseModel(value: unknown, field: string): Model {
 	return {
 		...id,
 		...(variant === undefined ? {} : { variant }),
+	};
+}
+
+function parsePrimary(value: unknown, field: string): PrimaryModel {
+	if (!value || typeof value !== "object" || Array.isArray(value)) {
+		throw new TypeError(`${field} must be an object`);
+	}
+
+	const model = value as Record<string, unknown>;
+	const id = parseModelID(model.model, `${field}.model`);
+	const variants =
+		model.variant === undefined
+			? undefined
+			: typeof model.variant === "string"
+				? [parseRequiredVariant(model.variant, `${field}.variant`)]
+				: Array.isArray(model.variant) && model.variant.length > 0
+					? model.variant.map((variant, index) => parseRequiredVariant(variant, `${field}.variant[${index}]`))
+					: (() => {
+							throw new TypeError(`${field}.variant must be a non-empty string or array of non-empty strings`);
+						})();
+	return {
+		...id,
+		...(variants === undefined ? {} : { variants }),
 	};
 }
 
@@ -92,7 +129,7 @@ function parseRoute(value: unknown, index: number): ParsedRoutes {
 
 	const primaryResult = (() => {
 		try {
-			return { kind: "primary" as const, primary: parseModel(value.primary, `${path}.primary`) };
+			return { kind: "primary" as const, primary: parsePrimary(value.primary, `${path}.primary`) };
 		} catch {
 			return { kind: "error" as const, error: { path: `${path}.primary` } };
 		}
@@ -176,11 +213,11 @@ function parseRoutes(options?: PluginOptions): ParsedRoutes {
 	};
 }
 
-function matchesPrimary(selection: { primary?: Model }, model: Model) {
+function matchesPrimary(selection: { primary?: PrimaryModel }, model: Model) {
 	return (
 		selection.primary?.providerID === model.providerID &&
 		selection.primary.modelID === model.modelID &&
-		(selection.primary.variant === undefined || selection.primary.variant === (model.variant ?? "default"))
+		(selection.primary.variants === undefined || selection.primary.variants.includes(model.variant ?? "default"))
 	);
 }
 
