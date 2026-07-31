@@ -3,13 +3,11 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "opencode-subagent-model-selector",
+      "name": "@idrisgit/opencode-subagent-model-selector",
       "devDependencies": {
         "@biomejs/biome": "2.5.6",
         "@opencode-ai/plugin": "1.18.9",
         "@types/bun": "latest",
-      },
-      "peerDependencies": {
         "typescript": "^5",
       },
     },
