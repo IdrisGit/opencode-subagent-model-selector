@@ -28,6 +28,7 @@
 		"typecheck": "tsc --noEmit",
 		"check": "biome check .",
 		"format": "biome format --write .",
+		"changelog": "changelogen --bump --clean --noAuthors",
 		"prepack": "bun run generate-schema && bun run typecheck && bun run check"
 	},
 	"devDependencies": {
