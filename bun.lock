@@ -4,16 +4,14 @@
   "workspaces": {
     "": {
       "name": "@idrisgit/opencode-subagent-model-selector",
-      "dependencies": {
-        "changelogen": "0.6.2",
-        "valibot": "1.4.2",
-      },
       "devDependencies": {
         "@biomejs/biome": "2.5.6",
         "@opencode-ai/plugin": "1.18.9",
         "@types/bun": "latest",
         "@valibot/to-json-schema": "1.7.1",
+        "changelogen": "0.6.2",
         "typescript": "^5",
+        "valibot": "1.4.2",
       },
     },
   },

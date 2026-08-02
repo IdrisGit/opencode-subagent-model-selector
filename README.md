@@ -190,9 +190,10 @@ Use the local source file in your OpenCode configuration while developing:
 Run these checks before publishing:
 
 ```bash
-bun run generate-schema
 bun run typecheck
+bun run generate-schema
 bun run check
+bun run build
 npm pack --dry-run
 ```
 
