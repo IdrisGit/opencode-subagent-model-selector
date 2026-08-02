@@ -1,6 +1,6 @@
 {
 	"name": "@idrisgit/opencode-subagent-model-selector",
-	"version": "0.0.2",
+	"version": "0.1.0",
 	"description": "Route OpenCode subagents to models based on the parent session model.",
 	"type": "module",
 	"exports": "./src/index.ts",
