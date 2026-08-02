@@ -56,7 +56,7 @@ For a fixed model that never depends on the primary session, use OpenCode's nati
 
 - A route matches an exact primary `provider/model` ID and, optionally, its variant.
 - Subagent keys are exact OpenCode agent IDs, such as `explore`, `general`, or `code-review`.
-- Routes are evaluated in order. The last matching assignment for an agent wins.
+- Routes are evaluated in order. The last matching assignment for an agent wins. A route without `primary.variant` is a wildcard that matches every variant.
 - If no route matches, OpenCode resolves the subagent model normally.
 - Only subagents launched directly by a primary session are routed. Nested subagents are unchanged.
 
@@ -79,11 +79,13 @@ Use `provider/model` for every model value. Find model names on [Models.dev](htt
 
 Use the separate `variant` field rather than adding a variant to a model ID. An omitted `primary.variant` matches every variant; a string matches one variant; an array matches any listed variant. Use `"default"` to match the default primary variant.
 
+Put a wildcard base route before variant-specific overrides for the same primary model and subagent. The later variant-specific route then overrides the base assignment. Reversing the order makes the wildcard route win for every variant.
+
 ## Examples
 
 ### Override A Base Route For High-Reasoning Sessions
 
-Add this as a second item in `routes` after the base route above. It changes only `explore`: `general` keeps its Luna assignment.
+Add this as a second item in `routes` after the wildcard base route. It changes only `explore` for `high` and `xhigh`; `general` keeps its earlier assignment. Other variants continue to use the wildcard route.
 
 ```json
 {
@@ -148,7 +150,7 @@ If a subagent is not using the expected model:
 1. Run `opencode models` and verify the primary and target model IDs.
 2. Confirm the selected primary variant matches the route, if one is configured.
 3. Confirm the subagent ID matches the route key exactly.
-4. Check that no later route overrides the assignment.
+4. Check that wildcard base routes appear before variant-specific overrides and that no later matching route overrides the assignment.
 5. Confirm the subagent was launched directly by a primary session.
 6. Restart OpenCode after changing configuration.
 7. If a newly published version is still not loading, quit OpenCode, run `rm -rf ~/.cache/opencode/packages/@idrisgit/opencode-subagent-model-selector@latest`, then restart. This clears only this plugin's stale npm cache.
