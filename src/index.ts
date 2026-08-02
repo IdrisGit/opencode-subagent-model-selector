@@ -1,4 +1,5 @@
 import type { Plugin, PluginOptions } from "@opencode-ai/plugin";
+import * as v from "valibot";
 
 type Model = Readonly<{
 	providerID: string;
@@ -38,175 +39,100 @@ type ParsedRoutes = Readonly<{
 	errors: readonly InvalidSelection[];
 }>;
 
-function parseModelID(value: unknown, field: string): Omit<Model, "variant"> {
-	if (typeof value !== "string") {
-		throw new TypeError(`${field} must be a provider/model string`);
-	}
-
-	const separator = value.indexOf("/");
-	if (separator <= 0 || separator === value.length - 1) {
-		throw new TypeError(`${field} must be a provider/model string`);
-	}
-
-	return {
-		providerID: value.slice(0, separator),
-		modelID: value.slice(separator + 1),
-	};
-}
-
-function parseVariant(value: unknown, field: string) {
-	if (value === undefined) return;
-	if (typeof value !== "string" || !value) {
-		throw new TypeError(`${field} must be a non-empty string`);
-	}
-	return value;
-}
-
-function parseRequiredVariant(value: unknown, field: string) {
-	const variant = parseVariant(value, field);
-	if (variant === undefined) {
-		throw new TypeError(`${field} must be a non-empty string`);
-	}
-	return variant;
-}
-
-function parseModel(value: unknown, field: string): Model {
-	if (!value || typeof value !== "object" || Array.isArray(value)) {
-		throw new TypeError(`${field} must be an object`);
-	}
-
-	const model = value as Record<string, unknown>;
-	const id = parseModelID(model.model, `${field}.model`);
-	const variant = parseVariant(model.variant, `${field}.variant`);
-	return {
-		...id,
-		...(variant === undefined ? {} : { variant }),
-	};
-}
-
-function parsePrimary(value: unknown, field: string): PrimaryModel {
-	if (!value || typeof value !== "object" || Array.isArray(value)) {
-		throw new TypeError(`${field} must be an object`);
-	}
-
-	const model = value as Record<string, unknown>;
-	const id = parseModelID(model.model, `${field}.model`);
-	const variants =
-		model.variant === undefined
-			? undefined
-			: typeof model.variant === "string"
-				? [parseRequiredVariant(model.variant, `${field}.variant`)]
-				: Array.isArray(model.variant) && model.variant.length > 0
-					? model.variant.map((variant, index) => parseRequiredVariant(variant, `${field}.variant[${index}]`))
-					: (() => {
-							throw new TypeError(`${field}.variant must be a non-empty string or array of non-empty strings`);
-						})();
-	return {
-		...id,
-		...(variants === undefined ? {} : { variants }),
-	};
-}
-
-function parseAgent(value: unknown, field: string) {
-	if (typeof value !== "string" || !value) {
-		throw new TypeError(`${field} must be a non-empty string`);
-	}
-	return value;
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-	return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
+const NonEmptyString = v.pipe(v.string(), v.nonEmpty());
+const ModelID = v.pipe(
+	NonEmptyString,
+	v.check((value) => {
+		const separator = value.indexOf("/");
+		return separator > 0 && separator < value.length - 1;
+	}),
+);
+const SubagentDescriptor = v.object({
+	model: ModelID,
+	variant: v.optional(NonEmptyString),
+});
+const PrimaryDescriptor = v.object({
+	model: ModelID,
+	variant: v.optional(v.union([NonEmptyString, v.pipe(v.array(NonEmptyString), v.nonEmpty())])),
+});
+const Subagents = v.pipe(
+	v.record(NonEmptyString, SubagentDescriptor),
+	v.check((value) => Object.keys(value).length > 0),
+);
+const Route = v.pipe(
+	v.object({
+		primary: PrimaryDescriptor,
+		subagents: Subagents,
+	}),
+	v.transform((value): { primary: PrimaryModel; subagents: Record<string, Model> } => {
+		const primarySeparator = value.primary.model.indexOf("/");
+		return {
+			primary: {
+				providerID: value.primary.model.slice(0, primarySeparator),
+				modelID: value.primary.model.slice(primarySeparator + 1),
+				...(value.primary.variant === undefined
+					? {}
+					: {
+							variants: Array.isArray(value.primary.variant) ? value.primary.variant : [value.primary.variant],
+						}),
+			},
+			subagents: Object.fromEntries(
+				Object.entries(value.subagents).map(([agent, subagent]) => {
+					const separator = subagent.model.indexOf("/");
+					return [
+						agent,
+						{
+							providerID: subagent.model.slice(0, separator),
+							modelID: subagent.model.slice(separator + 1),
+							...(subagent.variant === undefined ? {} : { variant: subagent.variant }),
+						},
+					];
+				}),
+			),
+		};
+	}),
+);
+const Options = v.strictObject({
+	routes: v.optional(v.array(v.unknown())),
+});
 
 function parseRoute(value: unknown, index: number): ParsedRoutes {
 	const path = `routes[${index}]`;
-	if (!isObject(value)) {
+	const route = v.safeParse(Route, value);
+	if (!route.success) {
 		return {
 			selections: [],
 			errors: [{ path }],
 		};
 	}
 
-	const primaryResult = (() => {
-		try {
-			return { kind: "primary" as const, primary: parsePrimary(value.primary, `${path}.primary`) };
-		} catch {
-			return { kind: "error" as const, error: { path: `${path}.primary` } };
-		}
-	})();
-	if (primaryResult.kind === "error") {
-		return {
-			selections: [],
-			errors: [primaryResult.error],
-		};
-	}
-
-	const subagents = value.subagents;
-	if (!isObject(subagents)) {
-		return {
-			selections: [],
-			errors: [{ path: `${path}.subagents`, primary: primaryResult.primary }],
-		};
-	}
-
-	const assignments = Object.entries(subagents);
-	if (assignments.length === 0) {
-		return {
-			selections: [],
-			errors: [{ path: `${path}.subagents`, primary: primaryResult.primary }],
-		};
-	}
-
-	const results = assignments.map(([agent, subagent]) => {
-		const assignmentPath = `${path}.subagents.${agent || "<empty>"}`;
-		try {
-			const name = parseAgent(agent, assignmentPath);
-			try {
-				return {
-					kind: "selection" as const,
-					selection: {
-						agent: name,
-						primary: primaryResult.primary,
-						subagent: parseModel(subagent, assignmentPath),
-					},
-				};
-			} catch {
-				return {
-					kind: "error" as const,
-					error: { path: assignmentPath, agent: name, primary: primaryResult.primary },
-				};
-			}
-		} catch {
-			return {
-				kind: "error" as const,
-				error: { path: assignmentPath, primary: primaryResult.primary },
-			};
-		}
-	});
-
 	return {
-		selections: results.flatMap((result) => (result.kind === "selection" ? [result.selection] : [])),
-		errors: results.flatMap((result) => (result.kind === "error" ? [result.error] : [])),
+		selections: Object.entries(route.output.subagents).map(([agent, subagent]) => ({
+			agent,
+			primary: route.output.primary,
+			subagent,
+		})),
+		errors: [],
 	};
 }
 
 function parseRoutes(options?: PluginOptions): ParsedRoutes {
-	const routes = options?.routes;
-	if (routes === undefined) {
+	const parsedOptions = v.safeParse(Options, options ?? {});
+	if (!parsedOptions.success) {
+		return {
+			selections: [],
+			errors: [{ path: "options" }],
+		};
+	}
+
+	if (parsedOptions.output.routes === undefined) {
 		return {
 			selections: [],
 			errors: [],
 		};
 	}
 
-	if (!Array.isArray(routes)) {
-		return {
-			selections: [],
-			errors: [{ path: "routes" }],
-		};
-	}
-
-	const parsed = routes.map(parseRoute);
+	const parsed = parsedOptions.output.routes.map(parseRoute);
 	return {
 		selections: parsed.flatMap((route) => route.selections),
 		errors: parsed.flatMap((route) => route.errors),

@@ -51,6 +51,8 @@ Add the package and its options to `opencode.json`:
 
 `routes` is an ordered array. Every route requires a `primary` model descriptor and a non-empty `subagents` object. `primary` and every subagent assignment require `model` in `provider/model` form. `primary.variant` accepts one string or a non-empty array of strings; a subagent `variant` is an optional string. Subagent object keys are exact OpenCode agent names, so built-in agents such as `explore` and `general` and user-defined agents such as `code-review` work identically.
 
+The plugin options object is strict: `routes` is its only accepted key. Unknown fields inside routes, model descriptors, and subagent assignments are ignored. A malformed route is ignored as a whole, but does not disable valid routes elsewhere in the configuration.
+
 An omitted `primary.variant` matches every variant of the primary model. A string matches that one variant, while an array matches any listed variant; `"default"` matches the normalized default variant. An omitted subagent `variant` uses the target model's default variant.
 
 Routes are evaluated in declaration order and the final matching assignment for an agent wins. A later matching route is a partial override: it only changes the subagents it declares. In the example, Sol High sends `explore` to Terra High while `general` retains its Luna assignment from the earlier route.
