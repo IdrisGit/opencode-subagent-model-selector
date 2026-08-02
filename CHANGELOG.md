@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.1.1
+
+[compare changes](https://github.com/IdrisGit/opencode-subagent-model-selector/compare/v0.1.0...v0.1.1)
+
+### 🩹 Fixes
+
+- Build the plugin to OpenCode loads it properly ([9288c4c](https://github.com/IdrisGit/opencode-subagent-model-selector/commit/9288c4c))
+
 ## v0.1.0
 
 [compare changes](https://github.com/IdrisGit/opencode-subagent-model-selector/compare/v0.0.2...v0.1.0)
