@@ -151,6 +151,7 @@ If a subagent is not using the expected model:
 4. Check that no later route overrides the assignment.
 5. Confirm the subagent was launched directly by a primary session.
 6. Restart OpenCode after changing configuration.
+7. If a newly published version is still not loading, quit OpenCode, run `rm -rf ~/.cache/opencode/packages/@idrisgit/opencode-subagent-model-selector@latest`, then restart. This clears only this plugin's stale npm cache.
 
 The plugin warns in the TUI and OpenCode application log when malformed configuration leaves a subagent without a selected route. For more detail, run `opencode --log-level DEBUG` and consult the [OpenCode troubleshooting guide](https://opencode.ai/docs/troubleshooting/).
 
