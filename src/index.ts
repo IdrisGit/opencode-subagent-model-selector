@@ -1,5 +1,6 @@
 import type { Plugin, PluginOptions } from "@opencode-ai/plugin";
 import * as v from "valibot";
+import { Options, Route } from "./schema.ts";
 
 type Model = Readonly<{
 	providerID: string;
@@ -39,31 +40,8 @@ type ParsedRoutes = Readonly<{
 	errors: readonly InvalidSelection[];
 }>;
 
-const NonEmptyString = v.pipe(v.string(), v.nonEmpty());
-const ModelID = v.pipe(
-	NonEmptyString,
-	v.check((value) => {
-		const separator = value.indexOf("/");
-		return separator > 0 && separator < value.length - 1;
-	}),
-);
-const SubagentDescriptor = v.object({
-	model: ModelID,
-	variant: v.optional(NonEmptyString),
-});
-const PrimaryDescriptor = v.object({
-	model: ModelID,
-	variant: v.optional(v.union([NonEmptyString, v.pipe(v.array(NonEmptyString), v.nonEmpty())])),
-});
-const Subagents = v.pipe(
-	v.record(NonEmptyString, SubagentDescriptor),
-	v.check((value) => Object.keys(value).length > 0),
-);
-const Route = v.pipe(
-	v.object({
-		primary: PrimaryDescriptor,
-		subagents: Subagents,
-	}),
+const ParsedRoute = v.pipe(
+	Route,
 	v.transform((value): { primary: PrimaryModel; subagents: Record<string, Model> } => {
 		const primarySeparator = value.primary.model.indexOf("/");
 		return {
@@ -92,13 +70,10 @@ const Route = v.pipe(
 		};
 	}),
 );
-const Options = v.strictObject({
-	routes: v.optional(v.array(v.unknown())),
-});
 
 function parseRoute(value: unknown, index: number): ParsedRoutes {
 	const path = `routes[${index}]`;
-	const route = v.safeParse(Route, value);
+	const route = v.safeParse(ParsedRoute, value);
 	if (!route.success) {
 		return {
 			selections: [],

@@ -1,0 +1,76 @@
+{
+	"$id": "https://unpkg.com/@idrisgit/opencode-subagent-model-selector@0.0.2/schema.json",
+	"type": "object",
+	"properties": {
+		"routes": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"properties": {
+					"primary": {
+						"type": "object",
+						"properties": {
+							"model": {
+								"type": "string",
+								"minLength": 1,
+								"pattern": "^[^/]+\\/[\\s\\S]+$",
+								"description": "A model identifier in provider/model form."
+							},
+							"variant": {
+								"anyOf": [
+									{
+										"type": "string",
+										"minLength": 1,
+										"description": "A primary model variant to match."
+									},
+									{
+										"type": "array",
+										"items": {
+											"type": "string",
+											"minLength": 1
+										},
+										"minItems": 1,
+										"description": "Primary model variants to match."
+									}
+								]
+							}
+						},
+						"required": ["model"]
+					},
+					"subagents": {
+						"type": "object",
+						"propertyNames": {
+							"type": "string",
+							"minLength": 1
+						},
+						"additionalProperties": {
+							"type": "object",
+							"properties": {
+								"model": {
+									"type": "string",
+									"minLength": 1,
+									"pattern": "^[^/]+\\/[\\s\\S]+$",
+									"description": "A model identifier in provider/model form."
+								},
+								"variant": {
+									"type": "string",
+									"minLength": 1,
+									"description": "The target model variant."
+								}
+							},
+							"required": ["model"]
+						},
+						"minProperties": 1,
+						"description": "Non-empty subagent assignments keyed by exact OpenCode agent name."
+					}
+				},
+				"required": ["primary", "subagents"]
+			}
+		}
+	},
+	"required": [],
+	"additionalProperties": false,
+	"title": "OpenCode Subagent Model Selector Configuration",
+	"description": "Configuration options for @idrisgit/opencode-subagent-model-selector.",
+	"$schema": "https://json-schema.org/draft/2020-12/schema"
+}

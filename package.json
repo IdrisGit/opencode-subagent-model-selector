@@ -5,7 +5,8 @@
 	"type": "module",
 	"exports": "./src/index.ts",
 	"files": [
-		"src"
+		"src",
+		"schema.json"
 	],
 	"license": "Apache-2.0",
 	"repository": {
@@ -23,9 +24,11 @@
 		"model-routing"
 	],
 	"scripts": {
+		"generate-schema": "bun run scripts/generate-schema.ts && bunx biome format --write schema.json",
 		"typecheck": "tsc --noEmit",
 		"check": "biome check .",
-		"format": "biome format --write ."
+		"format": "biome format --write .",
+		"prepack": "bun run generate-schema && bun run typecheck && bun run check"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.6",
