@@ -1,13 +1,19 @@
 # @idrisgit/opencode-subagent-model-selector
 
-An OpenCode plugin that selects named subagent models from the effective model of the direct primary session.
+An OpenCode plugin that routes direct subagent tasks to models based on the primary session's selected model and variant.
 
-## Installation
+Use it to give the same subagent a different speed, cost, or capability profile for each primary model you use.
 
-Add the package and its options to `opencode.json`:
+## Install And Configure
+
+Before you begin, make sure OpenCode is installed, the providers you need are configured, and the target subagents are available.
+
+1. Choose your models on [Models.dev](https://models.dev/), then run `opencode models` to confirm the exact `provider/model` IDs available in your OpenCode installation.
+2. Add the plugin to your project `opencode.json` or global `~/.config/opencode/opencode.json`. See the [OpenCode configuration documentation](https://opencode.ai/docs/config/) for configuration locations and precedence.
 
 ```json
 {
+  "$schema": "https://opencode.ai/config.json",
   "plugin": [
     [
       "@idrisgit/opencode-subagent-model-selector",
@@ -24,21 +30,6 @@ Add the package and its options to `opencode.json`:
               },
               "general": {
                 "model": "openai/gpt-5.6-luna"
-              },
-              "code-review": {
-                "model": "anthropic/claude-sonnet-4-6"
-              }
-            }
-          },
-          {
-            "primary": {
-              "model": "openai/gpt-5.6-sol",
-              "variant": ["high", "xhigh"]
-            },
-            "subagents": {
-              "explore": {
-                "model": "openai/gpt-5.6-terra",
-                "variant": "high"
               }
             }
           }
@@ -49,47 +40,162 @@ Add the package and its options to `opencode.json`:
 }
 ```
 
-`routes` is an ordered array. Every route requires a `primary` model descriptor and a non-empty `subagents` object. `primary` and every subagent assignment require `model` in `provider/model` form. `primary.variant` accepts one string or a non-empty array of strings; a subagent `variant` is an optional string. Subagent object keys are exact OpenCode agent names, so built-in agents such as `explore` and `general` and user-defined agents such as `code-review` work identically.
+3. Restart OpenCode. This route sends direct `explore` tasks from `openai/gpt-5.6-sol` to Luna Low and direct `general` tasks to Luna's default variant.
 
-The plugin options object is strict: `routes` is its only accepted key. Unknown fields inside routes, model descriptors, and subagent assignments are ignored. A malformed route is ignored as a whole, but does not disable valid routes elsewhere in the configuration.
+OpenCode installs npm plugins automatically when it starts. See the [OpenCode plugin documentation](https://opencode.ai/docs/plugins/) for other plugin-loading options.
 
-## JSON Schema
+## Use This Plugin When
 
-OpenCode does not provide a way for plugins to register schemas for their own options. The plugin options position in OpenCode's configuration schema is an unrestricted object, so editors cannot validate this plugin's nested options automatically.
+- A primary model should delegate exploration or research to a faster, lower-cost model.
+- A high-reasoning primary variant should use a stronger subagent model.
+- Built-in or custom subagents need different models without changing their prompts or permissions.
 
-This package publishes its complete configuration schema as [schema.json](./schema.json), generated from the Valibot schemas used by the plugin. Use the moving latest URL by default: [`https://unpkg.com/@idrisgit/opencode-subagent-model-selector/schema.json`](https://unpkg.com/@idrisgit/opencode-subagent-model-selector/schema.json). To pin an immutable release, use `https://unpkg.com/@idrisgit/opencode-subagent-model-selector@<version>/schema.json`. Each generated schema has a versioned `$id` matching its published package version. The schema defines valid route configuration; at runtime, the plugin still ignores individual malformed routes so other valid routes keep working.
+For a fixed model that never depends on the primary session, use OpenCode's native [agent model configuration](https://opencode.ai/docs/agents/#model).
 
-Regenerate it after changing the configuration schemas:
+## Routing Rules
 
-```bash
-bun run generate-schema
+- A route matches an exact primary `provider/model` ID and, optionally, its variant.
+- Subagent keys are exact OpenCode agent IDs, such as `explore`, `general`, or `code-review`.
+- Routes are evaluated in order. The last matching assignment for an agent wins.
+- If no route matches, OpenCode resolves the subagent model normally.
+- Only subagents launched directly by a primary session are routed. Nested subagents are unchanged.
+
+## Configuration Reference
+
+`routes` is an ordered array. Every route needs a `primary` descriptor and a non-empty `subagents` object.
+
+| Field | Required | Description |
+| --- | --- | --- |
+| `routes` | No | Array of routing rules. Omit it or use `[]` to make no changes. |
+| `routes[].primary.model` | Yes | Primary model ID in `provider/model` form. |
+| `routes[].primary.variant` | No | A variant string or non-empty array of variants to match. Omit it to match every variant. |
+| `routes[].subagents` | Yes | Non-empty object keyed by exact OpenCode subagent ID. |
+| `routes[].subagents.<agent>.model` | Yes | Target model ID in `provider/model` form. |
+| `routes[].subagents.<agent>.variant` | No | Target model variant. Omit it to use the target model's default variant. |
+
+### Models And Variants
+
+Use `provider/model` for every model value. Find model names on [Models.dev](https://models.dev/), but use the output of `opencode models` as the final source of truth for your OpenCode installation.
+
+Use the separate `variant` field rather than adding a variant to a model ID. An omitted `primary.variant` matches every variant; a string matches one variant; an array matches any listed variant. Use `"default"` to match the default primary variant.
+
+## Examples
+
+### Override A Base Route For High-Reasoning Sessions
+
+Add this as a second item in `routes` after the base route above. It changes only `explore`: `general` keeps its Luna assignment.
+
+```json
+{
+  "primary": {
+    "model": "openai/gpt-5.6-sol",
+    "variant": ["high", "xhigh"]
+  },
+  "subagents": {
+    "explore": {
+      "model": "openai/gpt-5.6-terra",
+      "variant": "high"
+    }
+  }
+}
 ```
 
-An omitted `primary.variant` matches every variant of the primary model. A string matches that one variant, while an array matches any listed variant; `"default"` matches the normalized default variant. An omitted subagent `variant` uses the target model's default variant.
+### Route A Custom Subagent
 
-Routes are evaluated in declaration order and the final matching assignment for an agent wins. A later matching route is a partial override: it only changes the subagents it declares. In the example, Sol High sends `explore` to Terra High while `general` retains its Luna assignment from the earlier route.
+Define your subagent with OpenCode, then use the same agent ID in a route:
 
-If no route assigns a model, the plugin defers to OpenCode's normal agent model resolution. Configure an unconditional model with OpenCode's native `agent.<name>.model` setting rather than this plugin. Malformed routes show a warning and fall back without disabling valid, unrelated assignments.
+```json
+{
+  "agent": {
+    "code-review": {
+      "description": "Reviews changes for correctness and missing tests",
+      "mode": "subagent"
+    }
+  }
+}
+```
 
-Nested subagents are not routed: they inherit their caller's model normally.
+```json
+{
+  "primary": {
+    "model": "openai/gpt-5.6-sol"
+  },
+  "subagents": {
+    "code-review": {
+      "model": "anthropic/claude-sonnet-4-6"
+    }
+  }
+}
+```
+
+See the [OpenCode agents documentation](https://opencode.ai/docs/agents/) to configure an agent's prompt, permissions, and other behavior.
+
+## Schema Validation
+
+Use this JSON Schema to validate the plugin options object:
+
+- Latest release: [`https://unpkg.com/@idrisgit/opencode-subagent-model-selector/schema.json`](https://unpkg.com/@idrisgit/opencode-subagent-model-selector/schema.json)
+- Pinned release: `https://unpkg.com/@idrisgit/opencode-subagent-model-selector@<version>/schema.json`
+
+OpenCode cannot validate nested plugin options through its main configuration schema. Use this schema in your editor or validation tooling for `routes`.
+
+Only `routes` is accepted at the top level. Invalid individual routes are ignored so valid routes can still apply. Invalid top-level options disable all plugin routes.
+
+## Troubleshooting
+
+If a subagent is not using the expected model:
+
+1. Run `opencode models` and verify the primary and target model IDs.
+2. Confirm the selected primary variant matches the route, if one is configured.
+3. Confirm the subagent ID matches the route key exactly.
+4. Check that no later route overrides the assignment.
+5. Confirm the subagent was launched directly by a primary session.
+6. Restart OpenCode after changing configuration.
+
+The plugin warns in the TUI and OpenCode application log when malformed configuration leaves a subagent without a selected route. For more detail, run `opencode --log-level DEBUG` and consult the [OpenCode troubleshooting guide](https://opencode.ai/docs/troubleshooting/).
+
+## Star The Repository
+
+If this plugin is useful, please [star the repository](https://github.com/IdrisGit/opencode-subagent-model-selector) to help others find it.
+
+## Report Bugs And Request Features
+
+[Open a GitHub issue](https://github.com/IdrisGit/opencode-subagent-model-selector/issues) for bugs or feature requests. Include your OpenCode version, plugin version, redacted configuration, selected primary model and variant, expected result, actual result, and relevant logs.
 
 ## Development
 
-For local development, use the source file instead of the npm package:
+Clone the repository and install dependencies:
+
+```bash
+git clone https://github.com/IdrisGit/opencode-subagent-model-selector.git
+cd opencode-subagent-model-selector
+bun install
+```
+
+Use the local source file in your OpenCode configuration while developing:
 
 ```json
 {
   "plugin": [
     [
       "file:///path/to/opencode-subagent-model-selector/src/index.ts",
-      { "routes": [] }
+      {
+        "routes": []
+      }
     ]
   ]
 }
 ```
 
+Run these checks before publishing:
+
 ```bash
+bun run generate-schema
 bun run typecheck
 bun run check
 npm pack --dry-run
 ```
+
+## License
+
+Licensed under the [Apache License 2.0](./LICENSE).
