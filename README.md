@@ -4,6 +4,10 @@ An OpenCode plugin that routes direct subagent tasks to models based on the prim
 
 Use it to give the same subagent a different speed, cost, or capability profile for each primary model you use.
 
+## Compatibility
+
+Use OpenCode `v1.18.9` or later. Earlier versions might work but have not been tested.
+
 ## Install And Configure
 
 Before you begin, make sure OpenCode is installed, the providers you need are configured, and the target subagents are available.
