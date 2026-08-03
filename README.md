@@ -26,10 +26,11 @@ Before you begin, make sure OpenCode is installed, the providers you need are co
             "subagents": {
               "explore": {
                 "model": "openai/gpt-5.6-luna",
-                "variant": "low"
+                "variant": "medium"
               },
               "general": {
-                "model": "openai/gpt-5.6-luna"
+                "model": "openai/gpt-5.6-terra",
+                "variant": "medium"
               }
             }
           }
@@ -40,7 +41,7 @@ Before you begin, make sure OpenCode is installed, the providers you need are co
 }
 ```
 
-3. Restart OpenCode. This route sends direct `explore` tasks from `openai/gpt-5.6-sol` to Luna Low and direct `general` tasks to Luna's default variant.
+3. Restart OpenCode. This route sends direct `explore` tasks from `openai/gpt-5.6-sol` to Luna Medium and direct `general` tasks to Terra Medium.
 
 For a complete, real-world routing setup, see the maintainer's [personal `opencode.jsonc`](./opencode.jsonc).
 
@@ -87,16 +88,20 @@ Put a wildcard base route before variant-specific overrides for the same primary
 
 ### Override A Base Route For High-Reasoning Sessions
 
-Add this as a second item in `routes` after the wildcard base route. It changes only `explore` for `high` and `xhigh`; `general` keeps its earlier assignment. Other variants continue to use the wildcard route.
+Add this as a second item in `routes` after the wildcard base route. It routes `explore` to Terra Medium and `general` to Terra High for `high`, `xhigh`, and `max`. Other variants continue to use the wildcard route.
 
 ```json
 {
   "primary": {
     "model": "openai/gpt-5.6-sol",
-    "variant": ["high", "xhigh"]
+    "variant": ["high", "xhigh", "max"]
   },
   "subagents": {
     "explore": {
+      "model": "openai/gpt-5.6-terra",
+      "variant": "medium"
+    },
+    "general": {
       "model": "openai/gpt-5.6-terra",
       "variant": "high"
     }
@@ -104,20 +109,43 @@ Add this as a second item in `routes` after the wildcard base route. It changes 
 }
 ```
 
-### Route A Custom Subagent
+### Override A Terra Session
 
-Define your subagent with OpenCode, then use the same agent ID in a route:
+Place a wildcard route before the `xhigh` and `max` override:
 
 ```json
-{
-  "agent": {
-    "code-review": {
-      "description": "Reviews changes for correctness and missing tests",
-      "mode": "subagent"
+[
+  {
+    "primary": {
+      "model": "openai/gpt-5.6-terra"
+    },
+    "subagents": {
+      "explore": {
+        "model": "openai/gpt-5.6-luna",
+        "variant": "low"
+      }
+    }
+  },
+  {
+    "primary": {
+      "model": "openai/gpt-5.6-terra",
+      "variant": ["xhigh", "max"]
+    },
+    "subagents": {
+      "explore": {
+        "model": "openai/gpt-5.6-terra",
+        "variant": "medium"
+      }
     }
   }
-}
+]
 ```
+
+The later route upgrades direct `explore` tasks to Terra Medium for `xhigh` and `max`; other Terra variants use Luna Low.
+
+### Route A Custom Subagent
+
+Use the custom agent ID as a subagent key:
 
 ```json
 {
@@ -132,7 +160,7 @@ Define your subagent with OpenCode, then use the same agent ID in a route:
 }
 ```
 
-See the [OpenCode agents documentation](https://opencode.ai/docs/agents/) to configure an agent's prompt, permissions, and other behavior.
+Configure the agent itself with [OpenCode agent configuration](https://opencode.ai/docs/agents/).
 
 ## Schema Validation
 
