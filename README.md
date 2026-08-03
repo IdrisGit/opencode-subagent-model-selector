@@ -42,6 +42,8 @@ Before you begin, make sure OpenCode is installed, the providers you need are co
 
 3. Restart OpenCode. This route sends direct `explore` tasks from `openai/gpt-5.6-sol` to Luna Low and direct `general` tasks to Luna's default variant.
 
+For a complete, real-world routing setup, see the maintainer's [personal `opencode.jsonc`](./opencode.jsonc).
+
 OpenCode installs npm plugins automatically when it starts. See the [OpenCode plugin documentation](https://opencode.ai/docs/plugins/) for other plugin-loading options.
 
 ## Use This Plugin When
