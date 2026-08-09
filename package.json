@@ -7,8 +7,13 @@
 	"main": "./dist/index.js",
 	"exports": {
 		".": "./dist/index.js",
-		"./server": "./dist/index.js"
+		"./server": "./dist/index.js",
+		"./tui": "./dist/tui.js"
 	},
+	"oc-plugin": [
+		"server",
+		"tui"
+	],
 	"files": [
 		"dist",
 		"schema.json"
@@ -29,7 +34,7 @@
 		"model-routing"
 	],
 	"scripts": {
-		"build": "bun build src/index.ts --bundle --target=bun --format=esm --outdir=dist",
+		"build": "bun run scripts/build.ts",
 		"generate-schema": "bun run scripts/generate-schema.ts && bunx biome format --write schema.json",
 		"typecheck": "tsc --noEmit",
 		"check": "biome check .",
