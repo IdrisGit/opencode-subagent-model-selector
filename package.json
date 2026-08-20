@@ -7,8 +7,13 @@
 	"main": "./dist/index.js",
 	"exports": {
 		".": "./dist/index.js",
-		"./server": "./dist/index.js"
+		"./server": "./dist/index.js",
+		"./tui": "./dist/tui.js"
 	},
+	"oc-plugin": [
+		"server",
+		"tui"
+	],
 	"files": [
 		"dist",
 		"schema.json"
@@ -29,7 +34,7 @@
 		"model-routing"
 	],
 	"scripts": {
-		"build": "bun build src/index.ts --bundle --target=bun --format=esm --outdir=dist",
+		"build": "bun run scripts/build.ts",
 		"generate-schema": "bun run scripts/generate-schema.ts && bunx biome format --write schema.json",
 		"typecheck": "tsc --noEmit",
 		"check": "biome check .",
@@ -39,11 +44,16 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.6",
-		"@opencode-ai/plugin": "1.18.9",
+		"@opencode-ai/plugin": "1.18.15",
 		"@types/bun": "latest",
 		"@valibot/to-json-schema": "1.7.1",
 		"changelogen": "0.6.2",
 		"valibot": "1.4.2",
 		"typescript": "^5"
+	},
+	"dependencies": {
+		"@opentui/core": "0.4.5",
+		"@opentui/solid": "0.4.5",
+		"solid-js": "1.9.12"
 	}
 }

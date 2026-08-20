@@ -6,7 +6,7 @@ Use it to give the same subagent a different speed, cost, or capability profile 
 
 ## Compatibility
 
-Use OpenCode `v1.18.9` or later. Earlier versions might work but have not been tested.
+Use OpenCode `v1.18.15` or later. Earlier versions might work but have not been tested.
 
 ## Install And Configure
 
@@ -66,6 +66,24 @@ For a fixed model that never depends on the primary session, use OpenCode's nati
 - Routes are evaluated in order. The last matching assignment for an agent wins. A route without `primary.variant` is a wildcard that matches every variant.
 - If no route matches, OpenCode resolves the subagent model normally.
 - Only subagents launched directly by a primary session are routed. Nested subagents are unchanged.
+
+## Sidebar Routing Summary
+
+In the OpenCode TUI, the session sidebar shows a **Subagent routing** panel when the selected primary model has configured routes. It lists each routed subagent, target model, and target variant without changing OpenCode's selected model, agent configuration, or session title.
+
+The panel uses the same matching rules as routing. For example, the configuration above displays `explore: GPT-Luna · medium` and `general: GPT-Terra · medium` for a default GPT-Sol session. A later route for GPT-Sol High replaces those rows with its configured assignments.
+
+When viewing a child session, the panel follows its parent chain and displays the root primary session's routing summary. It is hidden for new sessions that do not yet have a selected model and sessions without matching routes.
+
+OpenCode loads TUI plugins through a separate `tui.json` or `tui.jsonc`. Add the plugin there as a string, but keep `routes` only in the main OpenCode configuration:
+
+```json
+{
+  "plugin": ["@idrisgit/opencode-subagent-model-selector"]
+}
+```
+
+The TUI module reads the matching plugin options from the main configuration automatically.
 
 ## Configuration Reference
 
@@ -209,18 +227,30 @@ cd opencode-subagent-model-selector
 bun install
 ```
 
-Use the local source file in your OpenCode configuration while developing:
+Build the package, then use the local package directory in your OpenCode configuration. This lets OpenCode load both the server router and TUI sidebar plugin:
+
+```bash
+bun run build
+```
 
 ```json
 {
-  "plugin": [
-    [
-      "file:///path/to/opencode-subagent-model-selector/src/index.ts",
+	"plugin": [
+		[
+			"file:///path/to/opencode-subagent-model-selector",
       {
         "routes": []
       }
     ]
   ]
+}
+```
+
+Also add the package to your local `tui.jsonc`:
+
+```json
+{
+  "plugin": ["file:///path/to/opencode-subagent-model-selector"]
 }
 ```
 
