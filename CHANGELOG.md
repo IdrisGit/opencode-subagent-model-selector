@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.1.2
+
+[compare changes](https://github.com/IdrisGit/opencode-subagent-model-selector/compare/v0.1.1...v0.1.2)
+
+### 🚀 Enhancements
+
+- Add tui plugin to show the current models subagent configuration ([#1](https://github.com/IdrisGit/opencode-subagent-model-selector/pull/1))
+
+### 📖 Documentation
+
+- Stale cache install bug ([eab51e1](https://github.com/IdrisGit/opencode-subagent-model-selector/commit/eab51e1))
+- Clarify how routes are evaluated ([e24633f](https://github.com/IdrisGit/opencode-subagent-model-selector/commit/e24633f))
+- Add my own config for example ([4c0995b](https://github.com/IdrisGit/opencode-subagent-model-selector/commit/4c0995b))
+- Clarify usage ([fb15c4e](https://github.com/IdrisGit/opencode-subagent-model-selector/commit/fb15c4e))
+- Compatibility ([3779375](https://github.com/IdrisGit/opencode-subagent-model-selector/commit/3779375))
+- Add AGENTS.md ([5d6aa54](https://github.com/IdrisGit/opencode-subagent-model-selector/commit/5d6aa54))
+
 ## v0.1.1
 
 [compare changes](https://github.com/IdrisGit/opencode-subagent-model-selector/compare/v0.1.0...v0.1.1)
